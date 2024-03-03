@@ -1,164 +1,141 @@
+import 'dart:developer';
 import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart' hide Image;
+import 'package:provider/provider.dart';
 import 'package:sketch_app/main.dart';
+import 'package:sketch_app/view/drawing_canvas/controller/canvasProvider.dart';
 import 'package:sketch_app/view/drawing_canvas/models/drawing_mode.dart';
 import 'package:sketch_app/view/drawing_canvas/models/sketch.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
-class DrawingCanvas extends HookWidget {
+class DrawingCanvas extends StatelessWidget {
   final double height;
   final double width;
-  final ValueNotifier<Color> selectedColor;
-  final ValueNotifier<int> strokeSize;
-  final ValueNotifier<Image?> backgroundImage;
-  final ValueNotifier<int> eraserSize;
-  final ValueNotifier<DrawingMode> drawingMode;
   final AnimationController sideBarController;
-  final ValueNotifier<Sketch?> currentSketch;
-  final ValueNotifier<List<Sketch>> allSketches;
-  final GlobalKey canvasGlobalKey;
-  final ValueNotifier<int> polygonSides;
-  final ValueNotifier<bool> filled;
-
   const DrawingCanvas({
     Key? key,
     required this.height,
     required this.width,
-    required this.selectedColor,
-    required this.strokeSize,
-    required this.eraserSize,
-    required this.drawingMode,
     required this.sideBarController,
-    required this.currentSketch,
-    required this.allSketches,
-    required this.canvasGlobalKey,
-    required this.filled,
-    required this.polygonSides,
-    required this.backgroundImage,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.precise,
-      child: Stack(
-        children: [
-          buildAllSketches(context),
-          buildCurrentPath(context),
-        ],
-      ),
-    );
+    return Consumer<CanvasProvider>(builder: (context, canvasProvider, child) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.precise,
+        child: Stack(
+          children: [
+            buildAllSketches(context, canvasProvider),
+            buildCurrentPath(context, canvasProvider),
+          ],
+        ),
+      );
+    });
   }
 
-  void onPointerDown(PointerDownEvent details, BuildContext context) {
+  void onPointerDown(PointerDownEvent details, BuildContext context,
+      CanvasProvider canvasProvider) {
     final box = context.findRenderObject() as RenderBox;
     final offset = box.globalToLocal(details.position);
-    currentSketch.value = Sketch.fromDrawingMode(
+    canvasProvider.currentSketch = Sketch.fromDrawingMode(
       Sketch(
         points: [offset],
-        size: drawingMode.value == DrawingMode.eraser
-            ? eraserSize.value.toDouble()
-            : strokeSize.value.toDouble(),
-        color: drawingMode.value == DrawingMode.eraser
+        size: canvasProvider.drawingMode == DrawingMode.eraser
+            ? canvasProvider.strokeSize.toDouble()
+            : canvasProvider.strokeSize.toDouble(),
+        color: canvasProvider.drawingMode== DrawingMode.eraser
             ? kCanvasColor
-            : selectedColor.value,
-        sides: polygonSides.value,
+            : Colors.black,
+        sides: 3,
       ),
-      drawingMode.value,
-      filled.value,
+      canvasProvider.drawingMode,
+      canvasProvider.filled,
     );
   }
 
-  void onPointerMove(PointerMoveEvent details, BuildContext context) {
+  void onPointerMove(PointerMoveEvent details, BuildContext context,
+      CanvasProvider canvasProvider) {
     final box = context.findRenderObject() as RenderBox;
     final offset = box.globalToLocal(details.position);
-    final points = List<Offset>.from(currentSketch.value?.points ?? [])
+    final points = List<Offset>.from(canvasProvider.currentSketch?.points ?? [])
       ..add(offset);
 
-    currentSketch.value = Sketch.fromDrawingMode(
+    canvasProvider.currentSketch = Sketch.fromDrawingMode(
       Sketch(
         points: points,
-        size: drawingMode.value == DrawingMode.eraser
-            ? eraserSize.value.toDouble()
-            : strokeSize.value.toDouble(),
-        color: drawingMode.value == DrawingMode.eraser
+        size: canvasProvider.drawingMode == DrawingMode.eraser
+            ? canvasProvider.strokeSize.toDouble()
+            : canvasProvider.strokeSize.toDouble(),
+        color:canvasProvider.drawingMode== DrawingMode.eraser
             ? kCanvasColor
-            : selectedColor.value,
-        sides: polygonSides.value,
+            : Colors.black,
+        sides: 3,
       ),
-      drawingMode.value,
-      filled.value,
+      canvasProvider.drawingMode,
+      canvasProvider.filled,
     );
   }
 
-  void onPointerUp(PointerUpEvent details) {
-    allSketches.value = List<Sketch>.from(allSketches.value)
-      ..add(currentSketch.value!);
-    currentSketch.value = Sketch.fromDrawingMode(
+  void onPointerUp(PointerUpEvent details, CanvasProvider canvasProvider) {
+    log("OnPointerAUp: ${canvasProvider.drawingMode}");
+    canvasProvider.sketchesNotifier = List<Sketch>.from(canvasProvider.sketchesNotifier)
+      ..add(canvasProvider.currentSketch!);
+    canvasProvider.currentSketch = Sketch.fromDrawingMode(
       Sketch(
         points: [],
-        size: drawingMode.value == DrawingMode.eraser
-            ? eraserSize.value.toDouble()
-            : strokeSize.value.toDouble(),
-        color: drawingMode.value == DrawingMode.eraser
+        size: canvasProvider.drawingMode == DrawingMode.eraser
+            ? canvasProvider.strokeSize.toDouble()
+            : canvasProvider.strokeSize.toDouble(),
+        color: canvasProvider.drawingMode== DrawingMode.eraser
             ? kCanvasColor
-            : selectedColor.value,
-        sides: polygonSides.value,
+            : Colors.black,
+        sides:3,
       ),
-      drawingMode.value,
-      filled.value,
+      canvasProvider.drawingMode,
+      canvasProvider.filled,
     );
   }
 
-
-  Widget buildAllSketches(BuildContext context) {
+  Widget buildAllSketches(BuildContext context, CanvasProvider canvasProvider) {
     return SizedBox(
       height: height,
       width: width,
-      child: ValueListenableBuilder<List<Sketch>>(
-        valueListenable: allSketches,
-        builder: (context, sketches, _) {
-          return RepaintBoundary(
-            key: canvasGlobalKey,
-            child: Container(
-              height: height,
-              width: width,
-              color: kCanvasColor,
-              child: CustomPaint(
-                painter: SketchPainter(
-                  sketches: sketches,
-                  backgroundImage: backgroundImage.value,
-                ),
-              ),
+      child: RepaintBoundary(
+        key: canvasProvider.canvasGlobalKey,
+        child: Container(
+          height: height,
+          width: width,
+          color: kCanvasColor,
+          child: CustomPaint(
+            painter: SketchPainter(
+              sketches: canvasProvider.sketchesNotifier,
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Widget buildCurrentPath(BuildContext context) {
+  Widget buildCurrentPath(BuildContext context, CanvasProvider canvasProvider) {
     return Listener(
-      onPointerDown: (details) => onPointerDown(details, context),
-      onPointerMove: (details) => onPointerMove(details, context),
-      onPointerUp: onPointerUp,
-      child: ValueListenableBuilder(
-        valueListenable: currentSketch,
-        builder: (context, sketch, child) {
-          return RepaintBoundary(
-            child: SizedBox(
-              height: height,
-              width: width,
-              child: CustomPaint(
-                painter: SketchPainter(
-                  sketches: sketch == null ? [] : [sketch],
-                ),
-              ),
+      onPointerDown: (details) =>
+          onPointerDown(details, context, canvasProvider),
+      onPointerMove: (details) =>
+          onPointerMove(details, context, canvasProvider),
+      onPointerUp: (event) => onPointerUp(event, canvasProvider),
+      child: RepaintBoundary(
+        child: SizedBox(
+          height: height,
+          width: width,
+          child: CustomPaint(
+            painter: SketchPainter(
+              sketches: canvasProvider.currentSketch == null ? [] : [canvasProvider.currentSketch!],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

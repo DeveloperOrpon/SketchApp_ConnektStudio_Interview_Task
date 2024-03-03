@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:sketch_app/view/drawing_canvas/controller/canvasProvider.dart';
 import 'package:sketch_app/view/drawing_page.dart';
 
-
 void main() {
-  runApp(const MyApp());
-
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (context) => CanvasProvider()),
+    ],
+    child: const MyApp(),
+  ));
 }
-
 const Color kCanvasColor = Color(0xfff2f3f7);
-const String kGithubRepo = 'https://github.com/JideGuru/sketch_app';
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

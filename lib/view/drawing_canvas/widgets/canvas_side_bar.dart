@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
-
 import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/cupertino.dart';
@@ -9,50 +8,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:sketch_app/main.dart';
+import 'package:sketch_app/view/drawing_canvas/controller/canvasProvider.dart';
 import 'package:sketch_app/view/drawing_canvas/models/drawing_mode.dart';
 import 'package:sketch_app/view/drawing_canvas/models/sketch.dart';
-import 'package:sketch_app/view/drawing_canvas/widgets/color_palette.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:url_launcher/url_launcher.dart';
 
-
-class CanvasSideBar extends HookWidget {
-  final ValueNotifier<Color> selectedColor;
-  final ValueNotifier<int> strokeSize;
-  final ValueNotifier<DrawingMode> drawingMode;
-  final ValueNotifier<Sketch?> currentSketch;
-  final ValueNotifier<List<Sketch>> allSketches;
-  final GlobalKey canvasGlobalKey;
-  final ValueNotifier<bool> filled;
-  final ValueNotifier<int> polygonSides;
-  final ValueNotifier<ui.Image?> backgroundImage;
-
+class CanvasSideBar extends StatelessWidget {
   const CanvasSideBar({
     Key? key,
-    required this.selectedColor,
-    required this.strokeSize,
-    required this.drawingMode,
-    required this.currentSketch,
-    required this.allSketches,
-    required this.canvasGlobalKey,
-    required this.filled,
-    required this.polygonSides,
-    required this.backgroundImage,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final undoRedoStack = useState(
-      UndoRedoStack(
-        sketchesNotifier: allSketches,
-        currentSketchNotifier: currentSketch,
-      ),
-    );
-    final scrollController = useScrollController();
     return Container(
       width: 120,
       height: MediaQuery.of(context).size.height,
@@ -67,247 +40,254 @@ class CanvasSideBar extends HookWidget {
           ),
         ],
       ),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(),
-        controller: scrollController,
-        physics: const BouncingScrollPhysics(),
-
-        children: [
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.pencil,
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.pencil
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    FontAwesomeIcons.pencil,
-                    size: 40,
-                    color: Colors.black,
+      child:
+          Consumer<CanvasProvider>(builder: (context, canvasProvider, child) {
+        return ListView(
+          padding: const EdgeInsets.symmetric(),
+          physics: const BouncingScrollPhysics(),
+          children: [
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.pencil,
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              canvasProvider.drawingMode == DrawingMode.pencil
+                                  ? const Color(0xFF8c65ff)
+                                  : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      FontAwesomeIcons.pencil,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.eraser,
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.eraser
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    FontAwesomeIcons.eraser,
-                    size: 40,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: Text(
-              'Size (${strokeSize.value})',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              ],
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                  onPressed: () {
-                    if (strokeSize.value > 0) {
-                      strokeSize.value--;
-                    }
-                  },
-                  icon: const Icon(CupertinoIcons.minus)),
-              IconButton(
-                  onPressed: () {
-                    strokeSize.value++;
-                  },
-                  icon: const Icon(CupertinoIcons.add)),
-            ],
-          ),
-          const Center(
-            child: Text(
-              'Stroke Type:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.eraser,
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              canvasProvider.drawingMode == DrawingMode.eraser
+                                  ? const Color(0xFF8c65ff)
+                                  : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      FontAwesomeIcons.eraser,
+                      size: 40,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.pencil,
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.pencil
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    CupertinoIcons.pen,
-                    size: 40,
-                    color: Colors.black,
+            const SizedBox(height: 10),
+            Center(
+              child: Text(
+                'Size (${canvasProvider.strokeSize})',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                    onPressed: () {
+                      if (canvasProvider.strokeSize > 0) {
+                        canvasProvider.strokeSize--;
+                      }
+                    },
+                    icon: const Icon(CupertinoIcons.minus)),
+                IconButton(
+                    onPressed: () {
+                      canvasProvider.strokeSize++;
+                    },
+                    icon: const Icon(CupertinoIcons.add)),
+              ],
+            ),
+            const Center(
+              child: Text(
+                'Stroke Type:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.pencil,
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              canvasProvider.drawingMode == DrawingMode.pencil
+                                  ? const Color(0xFF8c65ff)
+                                  : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      CupertinoIcons.pen,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.line,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.line
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    Icons.straight,
-                    size: 40,
-                    color: Colors.black,
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.line,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: canvasProvider.drawingMode == DrawingMode.line
+                              ? const Color(0xFF8c65ff)
+                              : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      Icons.straight,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.circle,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.circle
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    FontAwesomeIcons.circle,
-                    size: 40,
-                    color: Colors.black,
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.circle,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              canvasProvider.drawingMode == DrawingMode.circle
+                                  ? const Color(0xFF8c65ff)
+                                  : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      FontAwesomeIcons.circle,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.square,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.square
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    FontAwesomeIcons.square,
-                    size: 40,
-                    color: Colors.black,
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.square,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              canvasProvider.drawingMode == DrawingMode.square
+                                  ? const Color(0xFF8c65ff)
+                                  : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      FontAwesomeIcons.square,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => drawingMode.value = DrawingMode.polygon,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFbcc2d7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: drawingMode.value == DrawingMode.polygon
-                            ? const Color(0xFF8c65ff)
-                            : Colors.transparent,
-                        width: 3,
-                      )),
-                  child: const Icon(
-                    CupertinoIcons.triangle,
-                    size: 40,
-                    color: Colors.black,
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => canvasProvider.drawingMode = DrawingMode.polygon,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFbcc2d7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              canvasProvider.drawingMode == DrawingMode.polygon
+                                  ? const Color(0xFF8c65ff)
+                                  : Colors.transparent,
+                          width: 3,
+                        )),
+                    child: const Icon(
+                      CupertinoIcons.triangle,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Fill Shape: ',
-                style: TextStyle(fontSize: 12,fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Checkbox(
-                value: filled.value,
-                onChanged: (val) {
-                  filled.value = val ?? false;
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Fill Shape: ',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Checkbox(
+                  value: canvasProvider.filled,
+                  onChanged: (val) {
+                    canvasProvider.filled = val ?? false;
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+      }),
     );
   }
 
@@ -375,9 +355,11 @@ class CanvasSideBar extends HookWidget {
     }
   }
 
-  Future<Uint8List?> getBytes() async {
-    RenderRepaintBoundary boundary = canvasGlobalKey.currentContext
-        ?.findRenderObject() as RenderRepaintBoundary;
+  Future<Uint8List?> getBytes(BuildContext context) async {
+    CanvasProvider canvasProvider = Provider.of<CanvasProvider>(context);
+    RenderRepaintBoundary boundary =
+        canvasProvider.canvasGlobalKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary;
     ui.Image image = await boundary.toImage();
     ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     Uint8List? pngBytes = byteData?.buffer.asUint8List();

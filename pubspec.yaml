@@ -45,6 +45,8 @@ dependencies:
   image_picker: ^1.0.4
   file_picker: ^6.1.1
   path_provider:
+  provider:
+  gallery_saver: ^2.3.2
 
 dev_dependencies:
   flutter_test:
